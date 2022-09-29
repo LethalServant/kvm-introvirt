@@ -1,0 +1,163 @@
+Index: kvm-introvirt/kernel/arch/x86/kvm/svm.c
+===================================================================
+--- kvm-introvirt.orig/kernel/arch/x86/kvm/svm.c
++++ kvm-introvirt/kernel/arch/x86/kvm/svm.c
+@@ -746,6 +746,11 @@ static void svm_set_efer(struct kvm_vcpu
+ 			efer &= ~EFER_LME;
+ 	}
+ 
++	/* IntroVirt patch to intercept system calls */
++	if (vcpu->syscall_hook_enabled) {
++		efer &= ~EFER_SCE;
++	}
++
+ 	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
+ 	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
+ }
+@@ -2698,6 +2703,16 @@ static void update_bp_intercept(struct k
+ 	struct vcpu_svm *svm = to_svm(vcpu);
+ 
+ 	clr_exception_intercept(svm, BP_VECTOR);
++	clr_exception_intercept(svm, GP_VECTOR);
++
++	/*
++	 * Guest access to VMware backdoor ports could legitimately
++	 * trigger #GP because of TSS I/O permission bitmap.
++	 * We intercept those #GP and allow access to them anyway
++	 * as VMware does.
++	 */
++	if (enable_vmware_backdoor | vcpu->syscall_hook_enabled)
++		set_exception_intercept(svm, GP_VECTOR);
+ 
+ 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
+ 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+@@ -4074,6 +4089,7 @@ static int cr_interception(struct vcpu_s
+ 		val = kvm_register_readl(&svm->vcpu, reg);
+ 		switch (cr) {
+ 		case 0:
++			kvm_deliver_cr_write_event(&svm->vcpu, 0, val);
+ 			if (!check_selective_cr0_intercepted(svm, val))
+ 				err = kvm_set_cr0(&svm->vcpu, val);
+ 			else
+@@ -4081,12 +4097,15 @@ static int cr_interception(struct vcpu_s
+ 
+ 			break;
+ 		case 3:
++			kvm_deliver_cr_write_event(&svm->vcpu, 3, val);
+ 			err = kvm_set_cr3(&svm->vcpu, val);
+ 			break;
+ 		case 4:
++			kvm_deliver_cr_write_event(&svm->vcpu, 4, val);
+ 			err = kvm_set_cr4(&svm->vcpu, val);
+ 			break;
+ 		case 8:
++			kvm_deliver_cr_write_event(&svm->vcpu, 8, val);
+ 			err = kvm_set_cr8(&svm->vcpu, val);
+ 			break;
+ 		default:
+@@ -4097,18 +4116,23 @@ static int cr_interception(struct vcpu_s
+ 	} else { /* mov from cr */
+ 		switch (cr) {
+ 		case 0:
++			kvm_deliver_cr_read_event(&svm->vcpu, 0, val);
+ 			val = kvm_read_cr0(&svm->vcpu);
+ 			break;
+ 		case 2:
++			kvm_deliver_cr_read_event(&svm->vcpu, 2, val);
+ 			val = svm->vcpu.arch.cr2;
+ 			break;
+ 		case 3:
++			kvm_deliver_cr_read_event(&svm->vcpu, 3, val);
+ 			val = kvm_read_cr3(&svm->vcpu);
+ 			break;
+ 		case 4:
++			kvm_deliver_cr_read_event(&svm->vcpu, 4, val);
+ 			val = kvm_read_cr4(&svm->vcpu);
+ 			break;
+ 		case 8:
++			kvm_deliver_cr_read_event(&svm->vcpu, 8, val);
+ 			val = kvm_get_cr8(&svm->vcpu);
+ 			break;
+ 		default:
+@@ -7257,17 +7281,78 @@ static bool svm_apic_init_signal_blocked
+ 
+ static int svm_set_cr_monitor(struct kvm_vcpu* vcpu, int cr, int mode)
+ {
+-	return -ENODEV;
++	struct vcpu_svm *svm = to_svm(vcpu);
++
++	if (unlikely(mode > 0x3)) {
++		printk ("Invalid mode 0x%X passed to KVM_SET_CR_MONITOR\n", mode);
++		return -EINVAL;
++	}
++
++	switch (cr)
++	{
++		// We can only monitor writes to CR 0 and 4
++		case 0:
++		case 4:
++			if (mode & KVM_MONITOR_CR_READ) {
++				printk(KERN_WARNING "Tried to enable CR%d read monitoring, but unsupported\n", cr);
++				return -ENODEV;
++			}
++			break;
++		case 3:
++			clr_cr_intercept(svm, INTERCEPT_CR3_READ);
++			clr_cr_intercept(svm,  INTERCEPT_CR3_WRITE);
++
++			if (mode & KVM_MONITOR_CR_WRITE)
++				set_cr_intercept(svm, INTERCEPT_CR3_WRITE);
++			if (mode & KVM_MONITOR_CR_READ)
++				set_cr_intercept(svm, INTERCEPT_CR3_READ);
++			break;
++		case 8:
++			clr_cr_intercept(svm, INTERCEPT_CR8_READ);
++			clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
++
++			if (mode & KVM_MONITOR_CR_WRITE)
++				set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
++			if (mode & KVM_MONITOR_CR_READ)
++				set_cr_intercept(svm, INTERCEPT_CR8_READ);
++			break;
++		default:
++			return -ENODEV;
++	}
++
++	// Update the VCPU mask, checked by event delivery
++	vcpu->cr_monitor_mask &= ~(0x3 << (cr * 2));
++	vcpu->cr_monitor_mask |= (mode << (cr * 2));
++
++	return 0;
+ }
+ 
+ static int svm_set_monitor_trap_flag(struct kvm_vcpu* vcpu, bool enabled)
+ {
+-	return -ENODEV;
++
++	struct vcpu_svm *svm = to_svm(vcpu);
++
++	if(enabled) {
++		set_exception_intercept(svm, UD_VECTOR);
++	}
++	else {
++		clr_exception_intercept(svm, UD_VECTOR);
++	}
++	return 0;
+ }
+ 
+ static int svm_set_invlpg_monitor(struct kvm_vcpu *vcpu, bool enabled)
+ {
+-	return -ENODEV;
++	struct vcpu_svm *svm = to_svm(vcpu);
++
++	if(enabled) {
++		set_intercept(svm, INTERCEPT_INVLPG);
++	}
++	else {
++		clr_intercept(svm, INTERCEPT_INVLPG);
++	}
++
++	return 0;
+ }
+ 
+ static bool svm_hap_permissions_allowed(uint16_t perms)
