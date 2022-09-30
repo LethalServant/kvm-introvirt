@@ -21,25 +21,28 @@ Index: kvm-introvirt/kernel/arch/x86/kvm/svm.c
 +	clr_exception_intercept(svm, GP_VECTOR);
 +
 +	/*
-+	 * Guest access to VMware backdoor ports could legitimately
-+	 * trigger #GP because of TSS I/O permission bitmap.
-+	 * We intercept those #GP and allow access to them anyway
-+	 * as VMware does.
-+	 */
++	* Guest access to VMware backdoor ports could legitimately
++	* trigger #GP because of TSS I/O permission bitmap.
++	* We intercept those #GP and allow access to them anyway
++	* as VMware does.
++	*/
 +	if (enable_vmware_backdoor | vcpu->syscall_hook_enabled)
 +		set_exception_intercept(svm, GP_VECTOR);
  
  	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
  		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-@@ -4074,6 +4089,7 @@ static int cr_interception(struct vcpu_s
+@@ -4074,19 +4089,24 @@ static int cr_interception(struct vcpu_s
  		val = kvm_register_readl(&svm->vcpu, reg);
  		switch (cr) {
  		case 0:
-+			kvm_deliver_cr_write_event(&svm->vcpu, 0, val);
- 			if (!check_selective_cr0_intercepted(svm, val))
+-			if (!check_selective_cr0_intercepted(svm, val))
++			if (!check_selective_cr0_intercepted(svm, val)) {
++				kvm_deliver_cr_write_event(&svm->vcpu, 0, val);
  				err = kvm_set_cr0(&svm->vcpu, val);
- 			else
-@@ -4081,12 +4097,15 @@ static int cr_interception(struct vcpu_s
+-			else
++			} else {
+ 				return 1;
++			}
  
  			break;
  		case 3:
@@ -55,31 +58,31 @@ Index: kvm-introvirt/kernel/arch/x86/kvm/svm.c
  			err = kvm_set_cr8(&svm->vcpu, val);
  			break;
  		default:
-@@ -4097,18 +4116,23 @@ static int cr_interception(struct vcpu_s
- 	} else { /* mov from cr */
+@@ -4098,18 +4118,23 @@ static int cr_interception(struct vcpu_s
  		switch (cr) {
  		case 0:
-+			kvm_deliver_cr_read_event(&svm->vcpu, 0, val);
  			val = kvm_read_cr0(&svm->vcpu);
++			kvm_deliver_cr_read_event(&svm->vcpu, 0, val);
  			break;
  		case 2:
-+			kvm_deliver_cr_read_event(&svm->vcpu, 2, val);
  			val = svm->vcpu.arch.cr2;
++			kvm_deliver_cr_read_event(&svm->vcpu, 2, val);
  			break;
  		case 3:
-+			kvm_deliver_cr_read_event(&svm->vcpu, 3, val);
  			val = kvm_read_cr3(&svm->vcpu);
++			kvm_deliver_cr_read_event(&svm->vcpu, 3, val);
  			break;
  		case 4:
-+			kvm_deliver_cr_read_event(&svm->vcpu, 4, val);
  			val = kvm_read_cr4(&svm->vcpu);
++			kvm_deliver_cr_read_event(&svm->vcpu, 4, val);
  			break;
  		case 8:
-+			kvm_deliver_cr_read_event(&svm->vcpu, 8, val);
  			val = kvm_get_cr8(&svm->vcpu);
++			kvm_deliver_cr_read_event(&svm->vcpu, 8, val);
  			break;
  		default:
-@@ -7257,17 +7281,78 @@ static bool svm_apic_init_signal_blocked
+ 			WARN(1, "unhandled read from CR%d", cr);
+@@ -7257,17 +7282,78 @@ static bool svm_apic_init_signal_blocked
  
  static int svm_set_cr_monitor(struct kvm_vcpu* vcpu, int cr, int mode)
  {
@@ -133,7 +136,7 @@ Index: kvm-introvirt/kernel/arch/x86/kvm/svm.c
  static int svm_set_monitor_trap_flag(struct kvm_vcpu* vcpu, bool enabled)
  {
 -	return -ENODEV;
-+
++	// amd does not have monitor trap flag
 +	struct vcpu_svm *svm = to_svm(vcpu);
 +
 +	if(enabled) {
@@ -161,3 +164,12 @@ Index: kvm-introvirt/kernel/arch/x86/kvm/svm.c
  }
  
  static bool svm_hap_permissions_allowed(uint16_t perms)
+@@ -7302,7 +7388,7 @@ static struct kvm_x86_ops svm_x86_ops __
+ 	.vcpu_unblocking = svm_vcpu_unblocking,
+ 
+ 	.update_bp_intercept = update_bp_intercept,
+-	.update_syscall_intercept = update_bp_intercept, // TODO: Change when we have introspection on SVM
++	.update_syscall_intercept = update_bp_intercept, 
+ 	.get_msr_feature = svm_get_msr_feature,
+ 	.get_msr = svm_get_msr,
+ 	.set_msr = svm_set_msr,
