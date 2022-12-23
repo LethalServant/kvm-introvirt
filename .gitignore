@@ -4,3 +4,7 @@ config.mk
 kernel/
 *.dsc
 *.gz
+dist
+.vagrant
+*.box
+*.log

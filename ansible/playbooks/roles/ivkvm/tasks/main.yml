@@ -1,0 +1,45 @@
+---
+- name: Get the System Kernel
+  shell:
+    cat /proc/version_signature
+  register: result
+- name: Print System Kernel
+  debug:
+    var: result
+- name: Update APT packages
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+- name: Get kernel version
+  shell:
+    uname -r
+  register: kernel_version
+- name: Install kvm introvirt dependencies
+  ansible.builtin.apt:
+    name:
+      - bc
+      - devscripts
+      - quilt
+      - git
+      - flex
+      - bison
+      - libssl-dev
+      - libelf-dev
+      - debhelper
+      - "linux-headers-{{ kernel_version.stdout }}"
+      - "linux-modules-{{ kernel_version.stdout }}"
+    state: present
+    update_cache: true
+  become: true
+- name: Configure kvm introvirt
+  shell:
+    cd /ivkvm/kvm-introvirt && \
+    ./configure
+  become: true
+- name: Build kvm Introvirt deb package
+  shell:
+    cd /ivkvm/kvm-introvirt && \
+    mkdir -p dist && \
+    dpkg-buildpackage -us -uc -j && \
+    cp -r ../kvm-introvirt_* ./dist/
+  become: true

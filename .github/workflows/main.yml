@@ -1,0 +1,31 @@
+name: KVM Introvirt main workflow
+
+on:
+  push:
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+
+jobs:
+  build_ivkvm:
+    runs-on: macos-12
+    steps:
+      - name: Checkout kvm-introvirt repo
+        uses: actions/checkout@v3
+        with:
+          path: kvm-introvirt
+      - name: Install Ansible via python
+        run: |
+          python3 -m pip install ansible
+          ansible-galaxy collection install ansible.posix
+      - name: Run MacOS System Checks
+        run: ./scripts/ci/macos-system-checks.sh
+      - name: Run vagrant ivkvm vm with ivkvm ansible playbook
+        run: |
+          cd vagrant/ivkvm && \
+          vagrant up
+      - name: Archive kvm-introvirt debian packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: kvm-introvirt
+          path: ./dist/kvm-introvirt_*.deb
