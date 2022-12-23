@@ -1877,18 +1877,19 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  static long kvm_vcpu_ioctl(struct file *filp,
  			   unsigned int ioctl, unsigned long arg)
  {
-@@ -2937,8 +3087,8 @@ static long kvm_vcpu_ioctl(struct file *
+@@ -2937,7 +3087,10 @@ static long kvm_vcpu_ioctl(struct file *
  	struct kvm_fpu *fpu = NULL;
  	struct kvm_sregs *kvm_sregs = NULL;
  
 -	if (vcpu->kvm->mm != current->mm || vcpu->kvm->vm_bugged)
--		return -EIO;
-+	// if (vcpu->kvm->mm != current->mm || vcpu->kvm->vm_bugged)
++	// if (vcpu->kvm->mm != current->mm)
 +	// 	return -EIO;
++
++	if (vcpu->kvm->vm_bugged)
+ 		return -EIO;
  
  	if (unlikely(_IOC_TYPE(ioctl) != KVMIO))
- 		return -EINVAL;
-@@ -2951,6 +3101,69 @@ static long kvm_vcpu_ioctl(struct file *
+@@ -2951,6 +3104,69 @@ static long kvm_vcpu_ioctl(struct file *
  	if (r != -ENOIOCTLCMD)
  		return r;
  
@@ -1958,7 +1959,7 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  	if (mutex_lock_killable(&vcpu->mutex))
  		return -EINTR;
  	switch (ioctl) {
-@@ -2974,7 +3187,11 @@ static long kvm_vcpu_ioctl(struct file *
+@@ -2974,7 +3190,11 @@ static long kvm_vcpu_ioctl(struct file *
  				synchronize_rcu();
  			put_pid(oldpid);
  		}
@@ -1970,19 +1971,21 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  		trace_kvm_userspace_exit(vcpu->run->exit_reason, r);
  		break;
  	}
-@@ -3413,8 +3630,9 @@ static long kvm_vm_ioctl(struct file *fi
+@@ -3413,8 +3633,12 @@ static long kvm_vm_ioctl(struct file *fi
  	void __user *argp = (void __user *)arg;
  	int r;
  
 -	if (kvm->mm != current->mm || kvm->vm_bugged)
--		return -EIO;
-+	// if (kvm->mm != current->mm || kvm->vm_bugged)
++	// if (kvm->mm != current->mm)
 +	// 	return -EIO;
 +	
++	if (kvm->vm_bugged)
+ 		return -EIO;
++
  	switch (ioctl) {
  	case KVM_CREATE_VCPU:
  		r = kvm_vm_ioctl_create_vcpu(kvm, arg);
-@@ -3588,6 +3806,9 @@ out_free_irq_routing:
+@@ -3588,6 +3812,9 @@ out_free_irq_routing:
  	case KVM_CHECK_EXTENSION:
  		r = kvm_vm_ioctl_check_extension_generic(kvm, arg);
  		break;
@@ -1992,7 +1995,7 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  	default:
  		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
  	}
-@@ -3664,11 +3885,100 @@ static long kvm_vm_compat_ioctl(struct f
+@@ -3664,11 +3891,100 @@ static long kvm_vm_compat_ioctl(struct f
  }
  #endif
  
@@ -2093,7 +2096,7 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  };
  
  static int kvm_dev_ioctl_create_vm(unsigned long type)
-@@ -3717,10 +4027,39 @@ put_kvm:
+@@ -3717,10 +4033,39 @@ put_kvm:
  	return r;
  }
  
@@ -2133,7 +2136,7 @@ Index: kvm-introvirt/kernel/virt/kvm/kvm_main.c
  
  	switch (ioctl) {
  	case KVM_GET_API_VERSION:
-@@ -3750,6 +4089,48 @@ static long kvm_dev_ioctl(struct file *f
+@@ -3750,6 +4095,48 @@ static long kvm_dev_ioctl(struct file *f
  	case KVM_TRACE_DISABLE:
  		r = -EOPNOTSUPP;
  		break;
