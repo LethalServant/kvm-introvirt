@@ -41,5 +41,6 @@
     cd /ivkvm/kvm-introvirt && \
     mkdir -p dist && \
     dpkg-buildpackage -us -uc -j && \
-    cp -r ../kvm-introvirt_* ./dist/
+    cp -r ../kvm-introvirt_* ./dist/ && \
+    cp -r ../kvm-introvirt-* ./dist/
   become: true

@@ -1,0 +1,43 @@
+---
+- name: Get the System Kernel
+  shell:
+    uname -r
+  register: result
+- name: Print System Kernel
+  debug:
+    var: result.stdout
+- name: Install Introvirt PPA
+  ansible.builtin.apt_repository:
+    repo: ppa:srpape/introvirt
+    update_cache: true # apt-get update
+  become: true
+- name: Install Microsoft Program Database (PDB) parsing lib
+  ansible.builtin.apt:
+    name:
+      - libmspdb1
+      - libmspdb-dev
+    state: present
+  become: true
+- name: Copy kvm Introvirt deb
+  ansible.builtin.copy:
+    src: kvm-introvirt-5.4.0-135-generic_5.4.0-135.152-0.57.0~focal1_amd64.deb
+    dest: /tmp/kvm-introvirt-5.4.0-135-generic_5.4.0-135.152-0.57.0~focal1_amd64.deb
+  become: true
+- name: Install kvm Introvirt deb
+  ansible.builtin.apt:
+    deb: /tmp/kvm-introvirt-5.4.0-135-generic_5.4.0-135.152-0.57.0~focal1_amd64.deb
+  become: true
+- name: Install introvirt
+  ansible.builtin.apt:
+    name: 
+      - libintrovirt1 
+      - libintrovirt-doc
+      - libintrovirt-dev
+      - introvirt-tools
+    state: present
+  become: true
+- name: Run ivversion
+  shell:
+    ivversion
+  register: result
+  become: true

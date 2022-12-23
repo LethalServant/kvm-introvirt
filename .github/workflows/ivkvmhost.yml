@@ -1,0 +1,24 @@
+name: KVM Introvirt - build vagrant ivkvm box
+
+on:
+  push:
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+
+jobs:
+  build_ivkvmhost:
+    runs-on: macos-12
+    - name: Checkout kvm-introvirt repo
+      uses: actions/checkout@v3
+    - name: Install Ansible via python
+      run: python3 -m pip install ansible
+    - name: Run MacOS System Checks
+      run: ./scripts/ci/macos-system-checks.sh
+    # TODO get kvm-introvirt deb from ppa / launchpad
+    - name: Run vagrant ivkvmhost vm with ivkvmhost ansible playbook
+        run: |
+          cd vagrant/ivkvmhost && \
+          vagrant up && \
+    - name: Package vagrant ivkvmhost vm into a box
+      run: pass

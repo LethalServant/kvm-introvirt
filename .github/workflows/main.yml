@@ -1,4 +1,4 @@
-name: KVM Introvirt main workflow
+name: KVM Introvirt
 
 on:
   push:
@@ -26,3 +26,4 @@ jobs:
         with:
           name: kvm-introvirt
           path: ./dist/kvm-introvirt_*.deb
+      # TODO push to ppa / launchpad
