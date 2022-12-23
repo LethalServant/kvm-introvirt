@@ -12,12 +12,9 @@ jobs:
     steps:
       - name: Checkout kvm-introvirt repo
         uses: actions/checkout@v3
-        with:
-          path: kvm-introvirt
       - name: Install Ansible via python
         run: |
           python3 -m pip install ansible
-          ansible-galaxy collection install ansible.posix
       - name: Run MacOS System Checks
         run: ./scripts/ci/macos-system-checks.sh
       - name: Run vagrant ivkvm vm with ivkvm ansible playbook
