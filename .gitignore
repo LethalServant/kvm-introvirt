@@ -4,7 +4,10 @@ config.mk
 kernel/
 *.dsc
 *.gz
+
+# ci
 dist
 .vagrant
 *.box
 *.log
+ansible/playbooks/roles/*/files/

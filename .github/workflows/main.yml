@@ -29,7 +29,7 @@ jobs:
       # TODO push to ppa / launchpad
 
   build_ivkvmhost:
-    # needs: build_ivkvm
+    needs: build_ivkvm
     runs-on: macos-12
     steps:
       - name: Checkout kvm-introvirt repo
@@ -67,12 +67,6 @@ jobs:
         run: python3 -m pip install ansible
       - name: Run MacOS System Checks
         run: ./scripts/ci/macos-system-checks.sh
-      - name: Download kvm-introvirt debian packages
-        uses: actions/download-artifact@v3
-        with:
-          name: kvm-introvirt
-          path: ansible/playbooks/roles/ivkvmhost/files
-      # TODO get kvm-introvirt deb from ppa / launchpad
       - name: Run vagrant ivkvmhost vm with ivkvmhost ansible playbook
         run: |
           cd vagrant/ivkvmhostci && \
