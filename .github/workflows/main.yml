@@ -27,3 +27,29 @@ jobs:
           name: kvm-introvirt
           path: ./dist/kvm-introvirt_*.deb
       # TODO push to ppa / launchpad
+
+  build_ivkvmhost:
+    needs: build_ivkvm
+    runs-on: macos-12
+    - name: Checkout kvm-introvirt repo
+      uses: actions/checkout@v3
+    - name: Install Ansible via python
+      run: python3 -m pip install ansible
+    - name: Run MacOS System Checks
+      run: ./scripts/ci/macos-system-checks.sh
+    - name: Download kvm-introvirt debian packages
+      uses: actions/download-artifact@v3
+      with:
+        name: kvm-introvirt
+        path: ansible/playbooks/roles/ivkvmhost/files
+    # TODO get kvm-introvirt deb from ppa / launchpad
+    - name: Run vagrant ivkvmhost vm with ivkvmhost ansible playbook
+        run: |
+          cd vagrant/ivkvmhost && \
+          vagrant up && \
+          vagrant package --output ../../dist/ivkvmhost.box
+    - name: Archive kvm-introvirt debian packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: ivkvmhost
+        path: dist/ivkvmhost.box

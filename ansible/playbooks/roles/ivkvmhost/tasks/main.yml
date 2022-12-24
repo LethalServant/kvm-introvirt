@@ -27,17 +27,3 @@
   ansible.builtin.apt:
     deb: /tmp/kvm-introvirt-5.4.0-135-generic_5.4.0-135.152-0.57.0~focal1_amd64.deb
   become: true
-- name: Install introvirt
-  ansible.builtin.apt:
-    name: 
-      - libintrovirt1 
-      - libintrovirt-doc
-      - libintrovirt-dev
-      - introvirt-tools
-    state: present
-  become: true
-- name: Run ivversion
-  shell:
-    ivversion
-  register: result
-  become: true
