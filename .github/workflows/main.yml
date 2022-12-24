@@ -45,10 +45,10 @@ jobs:
           path: ansible/playbooks/roles/ivkvmhost/files
       # TODO get kvm-introvirt deb from ppa / launchpad
       - name: Run vagrant ivkvmhost vm with ivkvmhost ansible playbook
-          run: |
-            cd vagrant/ivkvmhost && \
-            vagrant up && \
-            vagrant package --output ../../dist/ivkvmhost.box
+        run: |
+          cd vagrant/ivkvmhost && \
+          vagrant up && \
+          vagrant package --output ../../dist/ivkvmhost.box
       - name: Archive kvm-introvirt debian packages
         uses: actions/upload-artifact@v3
         with:
