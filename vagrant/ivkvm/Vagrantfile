@@ -14,7 +14,7 @@ Vagrant.configure("2") do |config|
       ivkvm.vm.synced_folder "../..", "/ivkvm/kvm-introvirt"
       ivkvm.vm.provision "ansible" do |ansible|
         ansible.playbook = "../../ansible/playbooks/ivkvm.yml"
-        ansible.verbose = "vvv"
+        # ansible.verbose = "vvv"
       end
     end
   end
