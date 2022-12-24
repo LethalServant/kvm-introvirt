@@ -25,7 +25,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: kvm-introvirt
-          path: ./dist/kvm-introvirt_*.deb
+          path: dist/kvm-introvirt*.deb
       # TODO push to ppa / launchpad
 
   build_ivkvmhost:
